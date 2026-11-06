@@ -8,3 +8,7 @@ target_link_libraries(timing_methods PRIVATE tir_kernels)
 # Measure why the first few calls are slow
 add_executable(first_call first_call.cpp)
 target_link_libraries(first_call PRIVATE tir_kernels)
+
+# Sweep sizes and measure copy time, kernel time, and GFLOPS
+add_executable(size_sweep size_sweep.cpp)
+target_link_libraries(size_sweep PRIVATE tir_kernels)
