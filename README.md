@@ -13,6 +13,7 @@ commit 기록 자체가 교재입니다. 주차마다 `main`에 작업이 merge�
 
 ```
 toy-infer-runtime/
+├── main.cpp          main 프로그램 (tir). 커널을, 이후에는 graph를 실행
 ├── include/tir/      공개 헤더
 ├── src/
 │   ├── kernels/      CUDA 커널. raw pointer만 받음
@@ -32,6 +33,13 @@ toy-infer-runtime/
 ```bash
 git clone <repo> && cd toy-infer-runtime
 ./tools/setup-dev.sh   # commit 템플릿과 형식 검사 hook 등록 (commit할 사람만)
+
+cmake -B build         # 기본 GPU 아키텍처는 sm_120. 다른 GPU면 -DCMAKE_CUDA_ARCHITECTURES=<arch>
+cmake --build build -j
+ctest --test-dir build # 커널 결과가 CPU reference와 같은지 확인
+./build/tir            # main 프로그램 실행
 ```
+
+요구 사항: CUDA 12.x, CMake 3.22 이상, C++17 컴파일러
 
 코드와 commit 규칙은 [docs/conventions.md](docs/conventions.md)를 참고하세요.
