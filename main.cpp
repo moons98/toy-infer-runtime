@@ -17,6 +17,7 @@
 #include <cstdio>
 #include <vector>
 
+#include "reference/reference.h"
 #include "tir/cuda_check.h"
 #include "tir/kernels.h"
 
@@ -26,6 +27,12 @@
 
 // vector_add: c[i] = a[i] + b[i]
 constexpr int kVectorN = 1 << 20;
+
+// gemm: C[M, N] = A[M, K] * B[K, N]
+struct GemmConfig {
+    int M, N, K;
+};
+constexpr GemmConfig kGemm = {256, 256, 256};
 
 // ---------------------------------------------------------------------------
 
@@ -78,8 +85,54 @@ static bool run_vector_add(int n) {
     return mismatches == 0;
 }
 
+static bool run_gemm(int M, int N, int K) {
+    std::printf("[gemm_naive] M = %d, N = %d, K = %d\n", M, N, K);
+    size_t bytes_A = size_t(M) * K * sizeof(float);
+    size_t bytes_B = size_t(K) * N * sizeof(float);
+    size_t bytes_C = size_t(M) * N * sizeof(float);
+
+    // Same sequence as vector_add again. Only the sizes and the launch function differ.
+    std::vector<float> h_A(size_t(M) * K), h_B(size_t(K) * N), h_C(size_t(M) * N);
+    for (size_t i = 0; i < h_A.size(); ++i) {
+        h_A[i] = static_cast<float>(i % 7) * 0.1f;
+    }
+    for (size_t i = 0; i < h_B.size(); ++i) {
+        h_B[i] = static_cast<float>(i % 5) * 0.1f;
+    }
+
+    float *d_A = nullptr, *d_B = nullptr, *d_C = nullptr;
+    TIR_CUDA_CHECK(cudaMalloc(&d_A, bytes_A));
+    TIR_CUDA_CHECK(cudaMalloc(&d_B, bytes_B));
+    TIR_CUDA_CHECK(cudaMalloc(&d_C, bytes_C));
+
+    TIR_CUDA_CHECK(cudaMemcpy(d_A, h_A.data(), bytes_A, cudaMemcpyHostToDevice));
+    TIR_CUDA_CHECK(cudaMemcpy(d_B, h_B.data(), bytes_B, cudaMemcpyHostToDevice));
+
+    // C is 2D, so launch_gemm_naive lays threads out in 2D too: x for columns, y for rows
+    tir::launch_gemm_naive(d_A, d_B, d_C, M, N, K);
+
+    TIR_CUDA_CHECK(cudaMemcpy(h_C.data(), d_C, bytes_C, cudaMemcpyDeviceToHost));
+
+    std::vector<float> expected(size_t(M) * N);
+    tir::ref::gemm(h_A.data(), h_B.data(), expected.data(), M, N, K);
+    int mismatches = 0;
+    for (size_t i = 0; i < h_C.size(); ++i) {
+        if (std::fabs(h_C[i] - expected[i]) > 1e-3f * (1.0f + std::fabs(expected[i]))) {
+            ++mismatches;
+        }
+    }
+
+    TIR_CUDA_CHECK(cudaFree(d_A));
+    TIR_CUDA_CHECK(cudaFree(d_B));
+    TIR_CUDA_CHECK(cudaFree(d_C));
+
+    std::printf("  %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
+    return mismatches == 0;
+}
+
 int main() {
     bool ok = true;
     ok &= run_vector_add(kVectorN);
+    ok &= run_gemm(kGemm.M, kGemm.N, kGemm.K);
     return ok ? 0 : 1;
 }

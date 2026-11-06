@@ -35,4 +35,4 @@ add_subdirectory(bench)
 
 # tir: the main program. What it runs is configured at the top of main.cpp.
 add_executable(tir main.cpp)
-target_link_libraries(tir PRIVATE tir_kernels)
+target_link_libraries(tir PRIVATE tir_kernels tir_reference)

@@ -8,4 +8,7 @@ namespace tir::ref {
 
 void vector_add(const float* a, const float* b, float* c, int n);
 
+// C[M, N] = A[M, K] * B[K, N]   (row-major)
+void gemm(const float* A, const float* B, float* C, int M, int N, int K);
+
 }  // namespace tir::ref

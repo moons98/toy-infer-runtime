@@ -17,4 +17,9 @@ namespace tir {
 // c[i] = a[i] + b[i]
 void launch_vector_add(const float* a, const float* b, float* c, int n, cudaStream_t stream = 0);
 
+// C[M, N] = A[M, K] * B[K, N]   (all row-major)
+// naive: each thread computes one element of C.
+void launch_gemm_naive(const float* A, const float* B, float* C, int M, int N, int K,
+                       cudaStream_t stream = 0);
+
 }  // namespace tir

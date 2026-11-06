@@ -13,3 +13,4 @@ function(tir_add_test name)
 endfunction()
 
 tir_add_test(test_vector_add)
+tir_add_test(test_gemm)
