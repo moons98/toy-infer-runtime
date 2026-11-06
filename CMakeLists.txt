@@ -27,4 +27,9 @@ add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+add_subdirectory(src)
 add_subdirectory(bench)
+
+# tir: the main program. What it runs is configured at the top of main.cpp.
+add_executable(tir main.cpp)
+target_link_libraries(tir PRIVATE tir_kernels)
