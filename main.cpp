@@ -34,6 +34,14 @@ struct GemmConfig {
 };
 constexpr GemmConfig kGemm = {256, 256, 256};
 
+// conv2d: x[N, C, H, W] * w[K, C, R, S] -> y[N, K, P, Q]
+struct Conv2dConfig {
+    int N, C, H, W;  // input
+    int K, R, S;     // filter
+    int pad, stride;
+};
+constexpr Conv2dConfig kConv2d = {1, 1, 28, 28, 6, 5, 5, 0, 1};  // LeNet first layer
+
 // ---------------------------------------------------------------------------
 
 static bool run_vector_add(int n) {
@@ -130,9 +138,60 @@ static bool run_gemm(int M, int N, int K) {
     return mismatches == 0;
 }
 
+static bool run_conv2d(int N, int C, int H, int W, int K, int R, int S, int pad, int stride) {
+    // We have to compute the output size ourselves (to allocate y) and pass every size and
+    // setting down to the kernel.
+    int P = (H + 2 * pad - R) / stride + 1;
+    int Q = (W + 2 * pad - S) / stride + 1;
+    std::printf("[conv2d_naive] x[%d,%d,%d,%d] w[%d,%d,%d,%d] pad=%d stride=%d -> y[%d,%d,%d,%d]\n",
+                N, C, H, W, K, C, R, S, pad, stride, N, K, P, Q);
+    size_t x_count = size_t(N) * C * H * W;
+    size_t w_count = size_t(K) * C * R * S;
+    size_t y_count = size_t(N) * K * P * Q;
+
+    std::vector<float> h_x(x_count), h_w(w_count), h_y(y_count);
+    for (size_t i = 0; i < x_count; ++i) {
+        h_x[i] = static_cast<float>(i % 11) * 0.1f;
+    }
+    for (size_t i = 0; i < w_count; ++i) {
+        h_w[i] = static_cast<float>(i % 3) * 0.1f;
+    }
+
+    float *d_x = nullptr, *d_w = nullptr, *d_y = nullptr;
+    TIR_CUDA_CHECK(cudaMalloc(&d_x, x_count * sizeof(float)));
+    TIR_CUDA_CHECK(cudaMalloc(&d_w, w_count * sizeof(float)));
+    TIR_CUDA_CHECK(cudaMalloc(&d_y, y_count * sizeof(float)));
+
+    TIR_CUDA_CHECK(cudaMemcpy(d_x, h_x.data(), x_count * sizeof(float), cudaMemcpyHostToDevice));
+    TIR_CUDA_CHECK(cudaMemcpy(d_w, h_w.data(), w_count * sizeof(float), cudaMemcpyHostToDevice));
+
+    // launch_conv2d_naive runs one thread per output element
+    tir::launch_conv2d_naive(d_x, d_w, d_y, N, C, H, W, K, R, S, pad, stride);
+
+    TIR_CUDA_CHECK(cudaMemcpy(h_y.data(), d_y, y_count * sizeof(float), cudaMemcpyDeviceToHost));
+
+    std::vector<float> expected(y_count);
+    tir::ref::conv2d(h_x.data(), h_w.data(), expected.data(), N, C, H, W, K, R, S, pad, stride);
+    int mismatches = 0;
+    for (size_t i = 0; i < y_count; ++i) {
+        if (std::fabs(h_y[i] - expected[i]) > 1e-3f * (1.0f + std::fabs(expected[i]))) {
+            ++mismatches;
+        }
+    }
+
+    TIR_CUDA_CHECK(cudaFree(d_x));
+    TIR_CUDA_CHECK(cudaFree(d_w));
+    TIR_CUDA_CHECK(cudaFree(d_y));
+
+    std::printf("  %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
+    return mismatches == 0;
+}
+
 int main() {
     bool ok = true;
     ok &= run_vector_add(kVectorN);
     ok &= run_gemm(kGemm.M, kGemm.N, kGemm.K);
+    ok &= run_conv2d(kConv2d.N, kConv2d.C, kConv2d.H, kConv2d.W, kConv2d.K, kConv2d.R, kConv2d.S,
+                     kConv2d.pad, kConv2d.stride);
     return ok ? 0 : 1;
 }

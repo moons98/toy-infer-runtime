@@ -14,3 +14,4 @@ endfunction()
 
 tir_add_test(test_vector_add)
 tir_add_test(test_gemm)
+tir_add_test(test_conv2d)
