@@ -1,0 +1,24 @@
+# Organizer planning notes (not published)
+.plan/
+
+# Build outputs
+build/
+out/
+compile_commands.json
+
+# Profiling results
+*.nsys-rep
+*.ncu-rep
+*.qdrep
+*.sqlite
+
+# Measurement / model data
+data/
+*.npy
+*.csv
+
+# Editors
+.vscode/
+.idea/
+*.swp
+.cache/

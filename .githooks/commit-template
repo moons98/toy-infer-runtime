@@ -1,0 +1,30 @@
+
+
+# ── commit message format ───────────────────────────────────────
+# <type>(<scope>): <subject>
+#
+# <body: 2-3 short lines on why. The diff already shows "how">
+#
+# type (required)
+#   feat      New feature (op, kernel, pass, executor feature, ...)
+#   fix       Bug fix
+#   refactor  Restructure without changing behavior
+#   perf      Performance improvement
+#   test      Add/modify tests
+#   bench     Add/modify benchmark programs
+#   docs      Documentation
+#   build     CMake, build configuration
+#   chore     Everything else (gitignore, scripts, formatting, ...)
+#
+# scope (optional): kernels, core, graph, executor, pass, memory, bench, tools ...
+#
+# Examples
+#   feat(kernels): add naive gemm kernel
+#   bench: compare chrono vs cudaEvent timing
+#   refactor(core): move launch config into ExecContext
+#
+# Rules
+#   - Write in English. Subject: 72 characters max, no trailing period
+#   - Keep the body short (2-3 lines); details belong in code comments or docs
+#   - One concept per commit. Every commit must build and pass tests
+# ────────────────────────────────────────────────────────────────
