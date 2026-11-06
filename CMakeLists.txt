@@ -27,7 +27,10 @@ add_compile_options($<$<COMPILE_LANGUAGE:CUDA>:-lineinfo>)
 
 include_directories(${PROJECT_SOURCE_DIR}/include)
 
+enable_testing()
+
 add_subdirectory(src)
+add_subdirectory(tests)
 add_subdirectory(bench)
 
 # tir: the main program. What it runs is configured at the top of main.cpp.
