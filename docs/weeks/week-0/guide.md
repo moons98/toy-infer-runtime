@@ -39,14 +39,14 @@ git checkout main                              # 다시 최신으로
 
 | commit | 볼 것 |
 |---|---|
-| `build: add cmake project and device info tool` | [CMakeLists.txt](../../CMakeLists.txt), [cuda_check.h](../../include/tir/cuda_check.h): 모든 CUDA 호출을 감싸는 에러 체크 |
-| `feat(kernels): add vector_add kernel ...` | [vector_add.cu](../../src/kernels/vector_add.cu): 1D 인덱싱과 경계 체크. [main.cpp](../../main.cpp): 위의 실행 순서 전체를 손으로 쓴 main 프로그램 |
-| `test: add cpu reference and vector_add test` | [tests/](../../tests/): GPU 결과를 CPU 결과와 비교하는 방법 |
-| `feat(kernels): add naive gemm kernel` | [gemm_naive.cu](../../src/kernels/gemm_naive.cu): 2D grid, thread와 출력 원소의 매핑. main에 같은 과정이 한 번 더 반복됨 |
-| `feat(kernels): add naive conv2d kernel` | [conv2d_naive.cu](../../src/kernels/conv2d_naive.cu): NCHW 인덱싱, padding/stride |
-| `bench: compare chrono, sync, and cudaEvent timing` | [timing_methods.cpp](../../bench/timing_methods.cpp): 세 가지 시간 측정 방법 |
-| `bench: measure first-call overhead ...` | [first_call.cpp](../../bench/first_call.cpp): 첫 호출이 느린 이유 |
-| `bench: add size sweep ...` | [size_sweep.cpp](../../bench/size_sweep.cpp): 복사 vs 커널, GFLOPS |
+| `build: add cmake project and device info tool` | [CMakeLists.txt](../../../CMakeLists.txt), [cuda_check.h](../../../include/tir/cuda_check.h): 모든 CUDA 호출을 감싸는 에러 체크 |
+| `feat(kernels): add vector_add kernel ...` | [vector_add.cu](../../../src/kernels/vector_add.cu): 1D 인덱싱과 경계 체크. [main.cpp](../../../main.cpp): 위의 실행 순서 전체를 손으로 쓴 main 프로그램 |
+| `test: add cpu reference and vector_add test` | [tests/](../../../tests/): GPU 결과를 CPU 결과와 비교하는 방법 |
+| `feat(kernels): add naive gemm kernel` | [gemm_naive.cu](../../../src/kernels/gemm_naive.cu): 2D grid, thread와 출력 원소의 매핑. main에 같은 과정이 한 번 더 반복됨 |
+| `feat(kernels): add naive conv2d kernel` | [conv2d_naive.cu](../../../src/kernels/conv2d_naive.cu): NCHW 인덱싱, padding/stride |
+| `bench: compare chrono, sync, and cudaEvent timing` | [timing_methods.cpp](../../../bench/timing_methods.cpp): 세 가지 시간 측정 방법 |
+| `bench: measure first-call overhead ...` | [first_call.cpp](../../../bench/first_call.cpp): 첫 호출이 느린 이유 |
+| `bench: add size sweep ...` | [size_sweep.cpp](../../../bench/size_sweep.cpp): 복사 vs 커널, GFLOPS |
 
 ## 빌드와 실행
 
@@ -72,8 +72,8 @@ ctest --test-dir build                 # 커널 결과가 CPU와 같은지 확�
 
 ## 바꿔볼 만한 것
 
-- [main.cpp](../../main.cpp) 위쪽의 설정값(크기, conv의 padding/stride 등)을 바꾸고 다시 빌드해서 실행해보기
-- GEMM의 block 크기(16×16)를 8×8, 32×32, 32×8 등으로 바꾸면? ([gemm_naive.cu](../../src/kernels/gemm_naive.cu)의 `kBlock`)
+- [main.cpp](../../../main.cpp) 위쪽의 설정값(크기, conv의 padding/stride 등)을 바꾸고 다시 빌드해서 실행해보기
+- GEMM의 block 크기(16×16)를 8×8, 32×32, 32×8 등으로 바꾸면? ([gemm_naive.cu](../../../src/kernels/gemm_naive.cu)의 `kBlock`)
 - GEMM 커널에서 `row`와 `col`을 `threadIdx.x`/`y`에 매핑하는 방식을 뒤바꾸면?
 - 커널에서 경계 체크(`if (row < M && col < N)`)를 빼면 테스트가 어떻게 되나?
 - `CUDA_MODULE_LOADING=EAGER ./build/bench/first_call`로 실행하면?
@@ -91,7 +91,7 @@ ctest --test-dir build                 # 커널 결과가 CPU와 같은지 확�
 
 - cudaEvent로 잰 시간과 host에서 잰 시간은 각각 무엇을 재는가? 어떤 상황에서 어느 쪽을 봐야 하는가?
 - 작은 GEMM 여러 개 vs 큰 GEMM 하나: 같은 연산량이라면 어느 쪽이 유리한가?
-- [main.cpp](../../main.cpp)를 읽으면서 반복되거나 실수하기 쉬웠던 부분은 무엇인가?
+- [main.cpp](../../../main.cpp)를 읽으면서 반복되거나 실수하기 쉬웠던 부분은 무엇인가?
   (다음 주 Tensor와 Op 추상화가 바로 여기서 시작합니다)
 
 ## 참고: 기준 측정값

@@ -7,7 +7,8 @@
 각 단계가 성능과 메모리에 주는 영향을 직접 측정해봅니다.
 
 commit 기록 자체가 교재입니다. 주차마다 `main`에 작업이 merge되고,
-안내 문서는 [docs/weeks/](docs/weeks/)에 있습니다.
+주차별 자료는 [docs/weeks/](docs/weeks/)에 있습니다
+(`week-N/guide.md`: 주차 안내, `week-N/talk.md`: 세미나 발표 자료).
 
 ## 레포 구조
 
