@@ -116,10 +116,11 @@ RTX PRO 4000 Blackwell, CUDA 12.8에서 측정한 값입니다. 자기 환경의
 
 | | 1번째 | 2번째 이후 |
 |---|---:|---:|
-| context 생성 | ~230,000 | - |
-| gemm_naive 512 | 171 | ~117 |
-| vector_add 262144 | 36 | ~3 |
+| context 생성 | 140,000~240,000 | - |
+| gemm_naive 512 | 169 | ~117 |
+| vector_add 262144 | 34 | ~3 |
 
+커널 시간은 GPU(cudaEvent) 기준입니다. context 생성은 GPU가 쉬고 있다가 처음 쓰면 더 오래 걸립니다.
 `CUDA_MODULE_LOADING=EAGER`에서는 1번째와 이후의 차이가 거의 사라집니다.
 
 </details>
