@@ -27,7 +27,9 @@ inline std::vector<float> random_vector(size_t n, unsigned seed = 0) {
 // The runtime's real Tensor type comes in a later week.
 class DeviceArray {
   public:
+    // ': n_(n)' initializes the member n_ before the body runs.
     explicit DeviceArray(size_t n) : n_(n) { TIR_CUDA_CHECK(cudaMalloc(&ptr_, n * sizeof(float))); }
+    // ': DeviceArray(...)' first runs the constructor above (allocate), then this body copies.
     explicit DeviceArray(const std::vector<float>& host) : DeviceArray(host.size()) {
         TIR_CUDA_CHECK(cudaMemcpy(ptr_, host.data(), n_ * sizeof(float), cudaMemcpyHostToDevice));
     }
