@@ -14,13 +14,14 @@ commit 기록 자체가 교재입니다. 주차마다 `main`에 작업이 merge�
 
 ```
 toy-infer-runtime/
-├── main.cpp          main 프로그램 (tir). 커널을, 이후에는 graph를 실행
+├── main.cpp          main 프로그램 (tir). 지금은 conv-bn-relu 블록, 이후 graph로 ResNet18
 ├── include/tir/      공개 헤더
 ├── src/
 │   ├── kernels/      CUDA 커널. raw pointer만 받음
-│   ├── core/         tensor, op registry, graph, executor
+│   ├── core/         tensor, allocator, op registry (이후 graph, executor)
+│   ├── ops/          op 정의: 출력 shape 계산 + 어떤 커널을 부를지
 │   ├── passes/       graph pass
-│   └── memory/       allocator, memory planner
+│   └── memory/       memory planner
 ├── bench/            측정 프로그램
 ├── tests/            결과 검증 (CPU reference 포함)
 ├── tools/            개발 스크립트
