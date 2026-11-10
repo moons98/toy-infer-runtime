@@ -60,6 +60,30 @@ static bool check_relu(const Shape& shape) {
     return report("relu " + to_string(shape), ok);
 }
 
+static bool check_batchnorm(const Shape& shape) {
+    int channels = shape[1];
+    int inner = static_cast<int>(numel(shape) / (shape[0] * shape[1]));
+    auto x = test::random_vector(numel(shape), 1);
+    std::vector<std::vector<float>> p;  // gamma, beta, mean, var
+    for (unsigned s = 2; s <= 5; ++s) {
+        p.push_back(test::random_vector(channels, s));
+    }
+    for (auto& v : p[3]) {
+        v = v + 1.5f;  // variance must be positive
+    }
+    std::vector<float> expected(x.size());
+    ref::batchnorm(x.data(), p[0].data(), p[1].data(), p[2].data(), p[3].data(), expected.data(),
+                   static_cast<int>(x.size()), channels, inner, 1e-5f);
+
+    std::vector<Tensor> inputs = {Tensor::from_host(x, shape)};
+    for (const auto& v : p) {
+        inputs.push_back(Tensor::from_host(v, {channels}));
+    }
+    Tensor y = run_op("batchnorm", inputs);
+    bool ok = y.shape() == shape && test::all_close(y.to_host(), expected);
+    return report("batchnorm " + to_string(shape), ok);
+}
+
 int main() {
     bool ok = true;
 
@@ -77,6 +101,13 @@ int main() {
 
     ok &= check_relu({2, 6, 24, 24});
     ok &= check_relu({1, 120});
+
+    ok &= check_batchnorm({1, 64, 56, 56});
+    ok &= check_batchnorm({4, 120});
+    ok &= report("batchnorm rejects a wrong parameter length", throws([] {
+                     Tensor p = Tensor::empty({5});
+                     run_op("batchnorm", {Tensor::empty({1, 6, 4, 4}), p, p, p, p});
+                 }));
 
     return ok ? 0 : 1;
 }

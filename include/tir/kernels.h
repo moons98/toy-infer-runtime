@@ -38,4 +38,12 @@ inline int conv2d_out_size(int in, int filter, int pad, int stride) {
 // y[i] = max(x[i], 0)
 void launch_relu(const float* x, float* y, int n, cudaStream_t stream = 0);
 
+// Batch normalization for inference, per channel c along dimension 1 of x:
+//   y = (x - mean[c]) / sqrt(var[c] + eps) * gamma[c] + beta[c]
+//   x, y: [N, C, H, W] (or [N, C]), n elements in total
+//   inner: elements per channel slice (H * W, or 1 for [N, C])
+void launch_batchnorm(const float* x, const float* gamma, const float* beta, const float* mean,
+                      const float* var, float* y, int n, int channels, int inner, float eps,
+                      cudaStream_t stream = 0);
+
 }  // namespace tir

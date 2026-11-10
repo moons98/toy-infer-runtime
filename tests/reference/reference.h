@@ -17,4 +17,7 @@ void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W
 
 void relu(const float* x, float* y, int n);
 
+void batchnorm(const float* x, const float* gamma, const float* beta, const float* mean,
+               const float* var, float* y, int n, int channels, int inner, float eps);
+
 }  // namespace tir::ref

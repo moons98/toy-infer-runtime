@@ -1,5 +1,7 @@
 #include "reference/reference.h"
 
+#include <cmath>
+
 namespace tir::ref {
 
 void vector_add(const float* a, const float* b, float* c, int n) {
@@ -52,6 +54,14 @@ void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W
 void relu(const float* x, float* y, int n) {
     for (int i = 0; i < n; ++i) {
         y[i] = x[i] > 0.0f ? x[i] : 0.0f;
+    }
+}
+
+void batchnorm(const float* x, const float* gamma, const float* beta, const float* mean,
+               const float* var, float* y, int n, int channels, int inner, float eps) {
+    for (int i = 0; i < n; ++i) {
+        int c = (i / inner) % channels;
+        y[i] = (x[i] - mean[c]) / std::sqrt(var[c] + eps) * gamma[c] + beta[c];
     }
 }
 
