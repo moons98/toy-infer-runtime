@@ -7,6 +7,7 @@ namespace tir {
 void register_all_ops(OpRegistry& registry) {
     register_gemm(registry);
     register_conv2d(registry);
+    register_relu(registry);
 }
 
 }  // namespace tir

@@ -15,4 +15,6 @@ void gemm(const float* A, const float* B, float* C, int M, int N, int K);
 void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W, int K, int R,
             int S, int pad, int stride);
 
+void relu(const float* x, float* y, int n);
+
 }  // namespace tir::ref

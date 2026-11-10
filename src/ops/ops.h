@@ -9,5 +9,6 @@ namespace tir {
 
 void register_gemm(OpRegistry& registry);
 void register_conv2d(OpRegistry& registry);
+void register_relu(OpRegistry& registry);
 
 }  // namespace tir

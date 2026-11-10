@@ -49,4 +49,10 @@ void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W
     }
 }
 
+void relu(const float* x, float* y, int n) {
+    for (int i = 0; i < n; ++i) {
+        y[i] = x[i] > 0.0f ? x[i] : 0.0f;
+    }
+}
+
 }  // namespace tir::ref

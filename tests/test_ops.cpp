@@ -50,6 +50,16 @@ static bool check_conv2d(int N, int C, int H, int W, int K, int R, int S, int pa
     return report("conv2d x" + to_string({N, C, H, W}) + " -> " + to_string(y.shape()), ok);
 }
 
+static bool check_relu(const Shape& shape) {
+    auto x = test::random_vector(numel(shape), 1);
+    std::vector<float> expected(x.size());
+    ref::relu(x.data(), expected.data(), static_cast<int>(x.size()));
+
+    Tensor y = run_op("relu", {Tensor::from_host(x, shape)});
+    bool ok = y.shape() == shape && test::all_close(y.to_host(), expected);
+    return report("relu " + to_string(shape), ok);
+}
+
 int main() {
     bool ok = true;
 
@@ -64,6 +74,9 @@ int main() {
     ok &= report("conv2d rejects mismatched channels", throws([] {
                      run_op("conv2d", {Tensor::empty({1, 3, 8, 8}), Tensor::empty({4, 2, 3, 3})});
                  }));
+
+    ok &= check_relu({2, 6, 24, 24});
+    ok &= check_relu({1, 120});
 
     return ok ? 0 : 1;
 }

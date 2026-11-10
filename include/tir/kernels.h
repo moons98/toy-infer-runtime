@@ -35,4 +35,7 @@ inline int conv2d_out_size(int in, int filter, int pad, int stride) {
     return (in + 2 * pad - filter) / stride + 1;
 }
 
+// y[i] = max(x[i], 0)
+void launch_relu(const float* x, float* y, int n, cudaStream_t stream = 0);
+
 }  // namespace tir
