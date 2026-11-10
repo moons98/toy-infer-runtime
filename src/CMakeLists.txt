@@ -12,5 +12,7 @@ add_library(tir_core STATIC
     core/tensor.cpp
     core/op.cpp
     ops/register_all.cpp
+    ops/gemm.cpp
+    ops/conv2d.cpp
 )
 target_link_libraries(tir_core PUBLIC tir_kernels)
