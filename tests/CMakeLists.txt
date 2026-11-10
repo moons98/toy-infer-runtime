@@ -8,10 +8,11 @@ target_include_directories(tir_reference PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 # It returns 0 if the results match and 1 otherwise; ctest uses the exit code as pass/fail.
 function(tir_add_test name)
     add_executable(${name} ${name}.cpp)
-    target_link_libraries(${name} PRIVATE tir_kernels tir_reference)
+    target_link_libraries(${name} PRIVATE tir_core tir_reference)
     add_test(NAME ${name} COMMAND ${name})
 endfunction()
 
 tir_add_test(test_vector_add)
 tir_add_test(test_gemm)
 tir_add_test(test_conv2d)
+tir_add_test(test_allocator)
