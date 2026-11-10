@@ -78,7 +78,11 @@ static void measure(int size, int repeats) {
 }
 
 int main(int argc, char** argv) {
-    int repeats = argc > 1 ? std::atoi(argv[1]) : 10;
+    constexpr int kDefaultRepeats = 10;
+    int repeats = argc > 1 ? std::atoi(argv[1]) : kDefaultRepeats;
+    if (repeats < 1) {
+        repeats = kDefaultRepeats;  // atoi gives 0 for non-numbers; median() needs a run
+    }
 
     std::printf("gemm_naive (M = N = K = size), median of %d runs\n\n", repeats);
     std::printf("%6s  %12s  %12s  %12s  %10s\n", "size", "H2D (us)", "kernel (us)", "D2H (us)",
