@@ -401,7 +401,7 @@ cudaMemcpy D2H                              │
 - [tests/reference/](../../../tests/reference/)에 CPU로 같은 연산을 구현해 두고 정답으로 쓴다.
 - `ctest`는 테스트 프로그램의 종료 코드(0이면 통과)로 판정한다.
 - 부동소수점은 계산 순서에 따라 값이 조금 달라지므로 `|actual - expected| <= atol + rtol * |expected|`로 비교한다.
-- **일부러 애매한 크기를 넣는다** ([test_gemm.cpp](../../../tests/test_gemm.cpp)): 1×1×1, 블록 크기와 딱 맞는 16, 안 맞는 17×33×9, M=1. 경계 체크가 빠지면 여기서 에러가 발생한다.
+- **일부러 애매한 크기를 넣는다** ([test_gemm.cpp](../../../tests/kernels/test_gemm.cpp)): 1×1×1, 블록 크기와 딱 맞는 16, 안 맞는 17×33×9, M=1. 경계 체크가 빠지면 여기서 에러가 발생한다.
 
 ### 벤치 프로그램
 

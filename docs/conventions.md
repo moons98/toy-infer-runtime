@@ -104,6 +104,6 @@ refactor(core): move stream into ExecContext
 ### 검증과 측정
 
 - 새 커널은 CPU reference(`tests/reference/`)와 결과를 비교하는 테스트를 같이 추가합니다
-- op으로 등록한 커널은 `tests/test_ops.cpp`에 `run_op`을 거치는 케이스도 추가합니다
+- op으로 등록한 커널은 `tests/ops/test_ops.cpp`에 `run_op`을 거치는 케이스도 추가합니다
 - 시간 측정은 `include/tir/timer.h`의 타이머를 씁니다: warmup 후 여러 번 반복, median을 보고
 - 측정 결과를 언급할 때는 GPU 모델과 입력 크기를 같이 적습니다
