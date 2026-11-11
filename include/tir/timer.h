@@ -16,9 +16,7 @@ namespace tir {
 class CpuTimer {
   public:
     void start() { start_ = Clock::now(); }
-    double stop_us() const {
-        return std::chrono::duration<double, std::micro>(Clock::now() - start_).count();
-    }
+    double stop_us() const { return std::chrono::duration<double, std::micro>(Clock::now() - start_).count(); }
 
   private:
     using Clock = std::chrono::steady_clock;

@@ -16,8 +16,7 @@ void register_gemm(OpRegistry& registry) {
         const Shape& a = in[0];
         const Shape& b = in[1];
         if (a.size() != 2 || b.size() != 2 || a[1] != b[0]) {
-            throw std::invalid_argument("gemm: expected [M, K] x [K, N], got " + to_string(a) +
-                                        " x " + to_string(b));
+            throw std::invalid_argument("gemm: expected [M, K] x [K, N], got " + to_string(a) + " x " + to_string(b));
         }
         return Shape{a[0], b[1]};
     };

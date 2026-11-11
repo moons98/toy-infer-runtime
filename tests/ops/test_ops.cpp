@@ -40,9 +40,8 @@ static bool check_gemm(int M, int N, int K) {
 static bool check_conv2d(int N, int C, int H, int W, int K, int R, int S, int pad, int stride) {
     auto x = test::random_vector(size_t(N) * C * H * W, 1);
     auto w = test::random_vector(size_t(K) * C * R * S, 2);
-    Tensor y =
-        run_op("conv2d", {Tensor::from_host(x, {N, C, H, W}), Tensor::from_host(w, {K, C, R, S})},
-               {{"pad", pad}, {"stride", stride}});
+    Tensor y = run_op("conv2d", {Tensor::from_host(x, {N, C, H, W}), Tensor::from_host(w, {K, C, R, S})},
+                      {{"pad", pad}, {"stride", stride}});
 
     std::vector<float> expected(y.numel());
     ref::conv2d(x.data(), w.data(), expected.data(), N, C, H, W, K, R, S, pad, stride);
@@ -95,9 +94,8 @@ int main() {
     ok &= check_conv2d(2, 3, 8, 8, 4, 3, 3, 1, 1);
     ok &= check_conv2d(1, 1, 28, 28, 6, 5, 5, 0, 1);
     ok &= check_conv2d(2, 4, 17, 13, 6, 3, 3, 1, 2);
-    ok &= report("conv2d rejects mismatched channels", throws([] {
-                     run_op("conv2d", {Tensor::empty({1, 3, 8, 8}), Tensor::empty({4, 2, 3, 3})});
-                 }));
+    ok &= report("conv2d rejects mismatched channels",
+                 throws([] { run_op("conv2d", {Tensor::empty({1, 3, 8, 8}), Tensor::empty({4, 2, 3, 3})}); }));
 
     ok &= check_relu({2, 6, 24, 24});
     ok &= check_relu({1, 120});

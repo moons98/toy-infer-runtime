@@ -48,12 +48,11 @@ OpRegistry& registry() {
     return r;
 }
 
-Tensor run_op(const std::string& name, const std::vector<Tensor>& inputs, const Attrs& attrs,
-              ExecContext& ctx) {
+Tensor run_op(const std::string& name, const std::vector<Tensor>& inputs, const Attrs& attrs, ExecContext& ctx) {
     const OpDef& op = registry().get(name);
     if (static_cast<int>(inputs.size()) != op.num_inputs) {
-        throw std::invalid_argument(name + ": expected " + std::to_string(op.num_inputs) +
-                                    " inputs, got " + std::to_string(inputs.size()));
+        throw std::invalid_argument(name + ": expected " + std::to_string(op.num_inputs) + " inputs, got " +
+                                    std::to_string(inputs.size()));
     }
 
     std::vector<Shape> input_shapes;

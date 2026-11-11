@@ -54,8 +54,8 @@ class DeviceArray {
 // Compare GPU and CPU results element by element.
 // Floating-point results differ slightly with evaluation order, so instead of exact equality
 // we check |actual - expected| <= atol + rtol * |expected|.
-inline bool all_close(const std::vector<float>& actual, const std::vector<float>& expected,
-                      float rtol = 1e-4f, float atol = 1e-5f) {
+inline bool all_close(const std::vector<float>& actual, const std::vector<float>& expected, float rtol = 1e-4f,
+                      float atol = 1e-5f) {
     if (actual.size() != expected.size()) {
         std::printf("  size mismatch: %zu vs %zu\n", actual.size(), expected.size());
         return false;
@@ -65,8 +65,7 @@ inline bool all_close(const std::vector<float>& actual, const std::vector<float>
         float diff = std::fabs(actual[i] - expected[i]);
         if (diff > atol + rtol * std::fabs(expected[i])) {
             if (mismatches < 5) {  // print only the first few
-                std::printf("  mismatch at [%zu]: got %f, expected %f\n", i, actual[i],
-                            expected[i]);
+                std::printf("  mismatch at [%zu]: got %f, expected %f\n", i, actual[i], expected[i]);
             }
             ++mismatches;
         }

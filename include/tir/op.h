@@ -47,9 +47,7 @@ struct OpDef {
     std::function<Shape(const std::vector<Shape>& inputs, const Attrs& attrs)> infer_shape;
 
     // Launch the kernel(s) that read `inputs` and write the already allocated `output`.
-    std::function<void(const std::vector<Tensor>& inputs, Tensor& output, const Attrs& attrs,
-                       ExecContext& ctx)>
-        launch;
+    std::function<void(const std::vector<Tensor>& inputs, Tensor& output, const Attrs& attrs, ExecContext& ctx)> launch;
 };
 
 class OpRegistry {

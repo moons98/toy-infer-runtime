@@ -23,8 +23,8 @@ void register_batchnorm(OpRegistry& registry) {
         }
         for (int i = 1; i < 5; ++i) {
             if (in[i] != Shape{x[1]}) {
-                throw std::invalid_argument("batchnorm: gamma, beta, mean, var must be [" +
-                                            std::to_string(x[1]) + "], got " + to_string(in[i]));
+                throw std::invalid_argument("batchnorm: gamma, beta, mean, var must be [" + std::to_string(x[1]) +
+                                            "], got " + to_string(in[i]));
             }
         }
         return x;
@@ -33,9 +33,8 @@ void register_batchnorm(OpRegistry& registry) {
     op.launch = [](const std::vector<Tensor>& in, Tensor& out, const Attrs&, ExecContext& ctx) {
         const Tensor& x = in[0];
         int inner = static_cast<int>(x.numel() / (x.dim(0) * x.dim(1)));
-        launch_batchnorm(x.data(), in[1].data(), in[2].data(), in[3].data(), in[4].data(),
-                         out.data(), static_cast<int>(x.numel()), x.dim(1), inner, kBatchNormEps,
-                         ctx.stream);
+        launch_batchnorm(x.data(), in[1].data(), in[2].data(), in[3].data(), in[4].data(), out.data(),
+                         static_cast<int>(x.numel()), x.dim(1), inner, kBatchNormEps, ctx.stream);
     };
 
     registry.add(op);

@@ -17,15 +17,13 @@ static bool check(int batch, int channels, int inner) {
         v = v + 1.5f;  // variance must be positive
     }
     std::vector<float> expected(n);
-    ref::batchnorm(x.data(), gamma.data(), beta.data(), mean.data(), var.data(), expected.data(), n,
-                   channels, inner, 1e-5f);
+    ref::batchnorm(x.data(), gamma.data(), beta.data(), mean.data(), var.data(), expected.data(), n, channels, inner,
+                   1e-5f);
 
     test::DeviceArray d_x(x), d_g(gamma), d_b(beta), d_m(mean), d_v(var), d_y(n);
-    launch_batchnorm(d_x.data(), d_g.data(), d_b.data(), d_m.data(), d_v.data(), d_y.data(), n,
-                     channels, inner, 1e-5f);
+    launch_batchnorm(d_x.data(), d_g.data(), d_b.data(), d_m.data(), d_v.data(), d_y.data(), n, channels, inner, 1e-5f);
     bool ok = test::all_close(d_y.to_host(), expected);
-    std::printf("batchnorm batch=%d channels=%-4d inner=%-5d %s\n", batch, channels, inner,
-                ok ? "OK" : "FAIL");
+    std::printf("batchnorm batch=%d channels=%-4d inner=%-5d %s\n", batch, channels, inner, ok ? "OK" : "FAIL");
     return ok;
 }
 

@@ -23,8 +23,7 @@ __global__ void gemm_naive_kernel(const float* A, const float* B, float* C, int 
     }
 }
 
-void launch_gemm_naive(const float* A, const float* B, float* C, int M, int N, int K,
-                       cudaStream_t stream) {
+void launch_gemm_naive(const float* A, const float* B, float* C, int M, int N, int K, cudaStream_t stream) {
     constexpr int kBlock = 16;
     dim3 block(kBlock, kBlock);  // 16 x 16 = 256 threads per block
     dim3 grid((N + kBlock - 1) / kBlock, (M + kBlock - 1) / kBlock);

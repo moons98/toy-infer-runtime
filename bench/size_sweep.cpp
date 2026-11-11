@@ -69,8 +69,8 @@ static void measure(int size, int repeats) {
 
     double kernel_us = bench::median(t_kernel);
     double gflops = 2.0 * M * N * K / (kernel_us * 1e-6) / 1e9;
-    std::printf("%6d  %12.1f  %12.1f  %12.1f  %10.1f\n", size, bench::median(t_h2d), kernel_us,
-                bench::median(t_d2h), gflops);
+    std::printf("%6d  %12.1f  %12.1f  %12.1f  %10.1f\n", size, bench::median(t_h2d), kernel_us, bench::median(t_d2h),
+                gflops);
 
     TIR_CUDA_CHECK(cudaFree(A));
     TIR_CUDA_CHECK(cudaFree(B));
@@ -85,8 +85,7 @@ int main(int argc, char** argv) {
     }
 
     std::printf("gemm_naive (M = N = K = size), median of %d runs\n\n", repeats);
-    std::printf("%6s  %12s  %12s  %12s  %10s\n", "size", "H2D (us)", "kernel (us)", "D2H (us)",
-                "GFLOPS");
+    std::printf("%6s  %12s  %12s  %12s  %10s\n", "size", "H2D (us)", "kernel (us)", "D2H (us)", "GFLOPS");
     for (int size : {16, 32, 64, 128, 256, 512, 1024, 2048, 4096}) {
         measure(size, repeats);
     }

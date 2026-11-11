@@ -80,8 +80,7 @@ int main(int argc, char** argv) {
     time_run_op(1024);
 
     std::printf("chain of %d relu ops, time per op (us), median of %d runs\n\n", kChain, repeats);
-    std::printf("%10s  %12s  %12s  %14s  %10s\n", "n", "(a) direct", "(b) run_op",
-                "(c) run_op keep", "(b) / (a)");
+    std::printf("%10s  %12s  %12s  %14s  %10s\n", "n", "(a) direct", "(b) run_op", "(c) run_op keep", "(b) / (a)");
     for (int n : {1 << 8, 1 << 12, 1 << 16, 1 << 20, 1 << 22}) {
         std::vector<double> a, b, c;
         for (int r = 0; r < repeats; ++r) {

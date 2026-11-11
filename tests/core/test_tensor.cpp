@@ -17,9 +17,9 @@ int main() {
 
     // shape, stride, numel
     Tensor t = Tensor::empty({2, 3, 4, 5});
-    ok &= report("shape / stride / numel", t.ndim() == 4 && t.numel() == 120 && t.bytes() == 480 &&
-                                               t.stride() == Shape{60, 20, 5, 1} &&
-                                               to_string(t.shape()) == "[2,3,4,5]");
+    ok &=
+        report("shape / stride / numel", t.ndim() == 4 && t.numel() == 120 && t.bytes() == 480 &&
+                                             t.stride() == Shape{60, 20, 5, 1} && to_string(t.shape()) == "[2,3,4,5]");
 
     // host -> device -> host keeps the data
     auto host = test::random_vector(6, 1);
@@ -29,8 +29,7 @@ int main() {
     // copying a Tensor shares the buffer instead of allocating
     size_t allocs_before = stats.num_allocs;
     Tensor b = a;
-    ok &=
-        report("copy shares the buffer", b.data() == a.data() && stats.num_allocs == allocs_before);
+    ok &= report("copy shares the buffer", b.data() == a.data() && stats.num_allocs == allocs_before);
 
     // the buffer is freed only when the last copy goes away
     size_t in_use = stats.bytes_in_use;

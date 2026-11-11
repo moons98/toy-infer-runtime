@@ -49,8 +49,8 @@ Tensor Tensor::empty(const Shape& shape, Allocator& allocator) {
 
 Tensor Tensor::from_host(const std::vector<float>& data, const Shape& shape, Allocator& allocator) {
     if (static_cast<int64_t>(data.size()) != tir::numel(shape)) {
-        throw std::invalid_argument("Tensor::from_host: " + std::to_string(data.size()) +
-                                    " values for shape " + to_string(shape));
+        throw std::invalid_argument("Tensor::from_host: " + std::to_string(data.size()) + " values for shape " +
+                                    to_string(shape));
     }
     Tensor t = empty(shape, allocator);
     TIR_CUDA_CHECK(cudaMemcpy(t.data(), data.data(), t.bytes(), cudaMemcpyHostToDevice));

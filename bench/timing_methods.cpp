@@ -75,8 +75,7 @@ static void measure(int size, int repeats) {
         t_event.push_back(ms * 1000.0);
     }
 
-    std::printf("%6d  %14.1f  %14.1f  %14.1f\n", size, median(t_chrono), median(t_chrono_sync),
-                median(t_event));
+    std::printf("%6d  %14.1f  %14.1f  %14.1f\n", size, median(t_chrono), median(t_chrono_sync), median(t_event));
 
     TIR_CUDA_CHECK(cudaEventDestroy(start_event));
     TIR_CUDA_CHECK(cudaEventDestroy(stop_event));
@@ -93,8 +92,7 @@ int main(int argc, char** argv) {
     }
 
     std::printf("gemm_naive (M = N = K = size), median of %d runs, unit: us\n\n", repeats);
-    std::printf("%6s  %14s  %14s  %14s\n", "size", "(a) chrono", "(b) chrono+sync",
-                "(c) cudaEvent");
+    std::printf("%6s  %14s  %14s  %14s\n", "size", "(a) chrono", "(b) chrono+sync", "(c) cudaEvent");
     for (int size : {32, 128, 512, 1024, 2048}) {
         measure(size, repeats);
     }

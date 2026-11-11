@@ -65,7 +65,7 @@ refactor(core): move stream into ExecContext
 ### 언어와 포맷
 
 - C++17, CUDA 12.x
-- 포맷은 `.clang-format`을 따릅니다 (4칸 들여쓰기, 100열). commit 전에 `clang-format -i`
+- 포맷은 `.clang-format`을 따릅니다 (4칸 들여쓰기, 120열). commit 전에 `clang-format -i`
 - 코드 안의 주석과 출력 문자열은 영어로 씁니다. 문서(`docs/`, README)는 한국어로 씁니다
 - 주석에는 **무엇을 하는지보다 왜 그렇게 하는지**를 씁니다
 - 코드 주석에는 주차 번호를 쓰지 않습니다. 일정은 바뀔 수 있으니 "memory planning", "graph executor"처럼 주제로 가리키고, 몇 주차인지는 `docs/`에만 적습니다

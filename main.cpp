@@ -85,8 +85,8 @@ struct Step {
 };
 
 // run_op, plus recording the call in `trace` if one is given
-static Tensor op(std::vector<Step>* trace, const std::string& name,
-                 const std::vector<Tensor>& inputs, const Attrs& attrs = {}) {
+static Tensor op(std::vector<Step>* trace, const std::string& name, const std::vector<Tensor>& inputs,
+                 const Attrs& attrs = {}) {
     Tensor out = tir::run_op(name, inputs, attrs);
     if (trace) {
         trace->push_back({name, inputs, attrs, out});
@@ -109,10 +109,10 @@ static std::vector<float> run_block_cpu(const std::vector<float>& x, const Block
     int inner = out_size * out_size;
     std::vector<float> y(size_t(kBatch) * kChannels * inner);
     int n = static_cast<int>(y.size());
-    ref::conv2d(x.data(), b.conv_w.host.data(), y.data(), kBatch, kChannels, kSize, kSize,
-                kChannels, kFilter, kFilter, kPad, 1);
-    ref::batchnorm(y.data(), b.gamma.host.data(), b.beta.host.data(), b.mean.host.data(),
-                   b.var.host.data(), y.data(), n, kChannels, inner, 1e-5f);
+    ref::conv2d(x.data(), b.conv_w.host.data(), y.data(), kBatch, kChannels, kSize, kSize, kChannels, kFilter, kFilter,
+                kPad, 1);
+    ref::batchnorm(y.data(), b.gamma.host.data(), b.beta.host.data(), b.mean.host.data(), b.var.host.data(), y.data(),
+                   n, kChannels, inner, 1e-5f);
     ref::relu(y.data(), y.data(), n);
     return y;
 }
@@ -124,8 +124,7 @@ static bool check(const std::vector<float>& actual, const std::vector<float>& ex
             ++mismatches;
         }
     }
-    std::printf("check vs CPU reference: %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL",
-                mismatches);
+    std::printf("check vs CPU reference: %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
     return mismatches == 0;
 }
 
@@ -170,15 +169,13 @@ int main() {
     }
 
     // 3. Kernel-only time of each op
-    std::printf("\nconv -> batchnorm -> relu, x[%d,%d,%d,%d], fp32, eager\n\n", kBatch, kChannels,
-                kSize, kSize);
+    std::printf("\nconv -> batchnorm -> relu, x[%d,%d,%d,%d], fp32, eager\n\n", kBatch, kChannels, kSize, kSize);
     std::printf("%-10s %-16s %12s\n", "op", "output", "kernel (us)");
     double kernel_sum = 0.0;
     for (const Step& step : trace) {
         double us = kernel_time_us(step);
         kernel_sum += us;
-        std::printf("%-10s %-16s %12.1f\n", step.op.c_str(),
-                    tir::to_string(step.output.shape()).c_str(), us);
+        std::printf("%-10s %-16s %12.1f\n", step.op.c_str(), tir::to_string(step.output.shape()).c_str(), us);
     }
 
     double total = tir::median(block_us);
@@ -186,7 +183,7 @@ int main() {
     std::printf("block end to end    : %8.1f us  (median of %d)\n", total, kRepeats);
     std::printf("runtime overhead    : %8.1f us  (%.0f%% of the block)\n", total - kernel_sum,
                 100.0 * (total - kernel_sum) / total);
-    std::printf("per run             : %zu run_op calls, %zu cudaMalloc, %zu cudaFree\n\n",
-                trace.size(), allocs, frees);
+    std::printf("per run             : %zu run_op calls, %zu cudaMalloc, %zu cudaFree\n\n", trace.size(), allocs,
+                frees);
     return ok ? 0 : 1;
 }
