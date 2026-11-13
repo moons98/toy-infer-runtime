@@ -15,15 +15,15 @@ __global__ void gemm_naive_kernel(const float* A, const float* B, float* C, int 
         float acc = 0.0f;
         for (int k = 0; k < K; ++k) {
             // Dot product of one row of A and one column of B.
-            // Slow because every value is read from global memory each time (improved in week 3).
+            // Slow because every value is read from global memory each time; tiling through
+            // shared memory is the usual fix.
             acc += A[row * K + k] * B[k * N + col];
         }
         C[row * N + col] = acc;
     }
 }
 
-void launch_gemm_naive(const float* A, const float* B, float* C, int M, int N, int K,
-                       cudaStream_t stream) {
+void launch_gemm_naive(const float* A, const float* B, float* C, int M, int N, int K, cudaStream_t stream) {
     constexpr int kBlock = 16;
     dim3 block(kBlock, kBlock);  // 16 x 16 = 256 threads per block
     dim3 grid((N + kBlock - 1) / kBlock, (M + kBlock - 1) / kBlock);

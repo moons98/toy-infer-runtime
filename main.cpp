@@ -1,197 +1,189 @@
 // tir: the main program of this repo.
 //
-// This is plain C++. The CUDA kernels live in src/kernels/*.cu and are called through the
-// launch_* functions declared in tir/kernels.h.
+// This is plain C++. The CUDA kernels live in src/kernels/*.cu; main only talks to the runtime
+// (Tensor and run_op).
 //
-// Week 0 has no runtime yet, so every step of running a kernel is written out by hand:
-// allocate device memory, copy inputs, launch, copy results back, check against the CPU, free.
-// As the runtime grows in later weeks (Tensor, Op, Graph), this file gets shorter.
+// Runs one conv -> batchnorm -> relu block eagerly, the basic building block of ResNet.
+// Each layer is one run_op() call, which finds the op by name in the registry, infers the output
+// shape, allocates the output, and launches the kernel right away. Weights are random; the result
+// is checked against the CPU reference.
 //
-// cudaMalloc/cudaFree are paired by hand on purpose (no RAII).
-// The point is to feel what gets repeated and what is easy to get wrong.
+// It then reports where the time goes: the block end to end vs. the kernels alone.
+// The difference is the runtime's own overhead (shape inference, allocation, launch).
 //
-// To change what runs, edit the configuration below (or comment out a run_* call in main)
-// and rebuild.
+// To change what runs, edit the configuration below and rebuild.
 
 #include <cmath>
 #include <cstdio>
+#include <random>
+#include <string>
 #include <vector>
 
 #include "reference/reference.h"
 #include "tir/cuda_check.h"
-#include "tir/kernels.h"
+#include "tir/op.h"
+#include "tir/tensor.h"
+#include "tir/timer.h"
+
+using tir::Attrs;
+using tir::Shape;
+using tir::Tensor;
 
 // ---------------------------------------------------------------------------
 // Configuration
 // ---------------------------------------------------------------------------
 
-// vector_add: c[i] = a[i] + b[i]
-constexpr int kVectorN = 1 << 20;
-
-// gemm: C[M, N] = A[M, K] * B[K, N]
-struct GemmConfig {
-    int M, N, K;
-};
-constexpr GemmConfig kGemm = {256, 256, 256};
-
-// conv2d: x[N, C, H, W] * w[K, C, R, S] -> y[N, K, P, Q]
-struct Conv2dConfig {
-    int N, C, H, W;  // input
-    int K, R, S;     // filter
-    int pad, stride;
-};
-constexpr Conv2dConfig kConv2d = {1, 1, 28, 28, 6, 5, 5, 0, 1};  // LeNet first layer
+// Defaults match the first residual block of ResNet18: [N, 64, 56, 56], 3x3 conv, pad 1
+constexpr int kBatch = 1;
+constexpr int kChannels = 64;  // input and output channels
+constexpr int kSize = 56;      // height and width
+constexpr int kFilter = 3;     // conv filter size (kFilter x kFilter)
+constexpr int kPad = 1;        // conv padding; 1 keeps 56x56 for a 3x3 filter
+constexpr int kRepeats = 20;   // timed runs of the block (after one warmup run)
+constexpr int kReplays = 100;  // launches per op when timing a kernel on its own
 
 // ---------------------------------------------------------------------------
 
-static bool run_vector_add(int n) {
-    std::printf("[vector_add] n = %d\n", n);
-    size_t bytes = n * sizeof(float);
+// A value kept on both sides: a host copy for the CPU reference and a Tensor for the GPU
+struct Param {
+    std::vector<float> host;
+    Tensor tensor;
+};
 
-    // 1. Prepare inputs in host (CPU) memory
-    std::vector<float> h_a(n), h_b(n), h_c(n);
-    for (int i = 0; i < n; ++i) {
-        h_a[i] = static_cast<float>(i);
-        h_b[i] = static_cast<float>(2 * i);
+static Param make_param(const Shape& shape, float lo, float hi, unsigned seed) {
+    std::mt19937 gen(seed);
+    std::uniform_real_distribution<float> dist(lo, hi);
+    std::vector<float> host(tir::numel(shape));
+    for (auto& v : host) {
+        v = dist(gen);
     }
+    return {host, Tensor::from_host(host, shape)};
+}
 
-    // 2. Allocate device (GPU) memory. The GPU cannot read host memory directly.
-    float *d_a = nullptr, *d_b = nullptr, *d_c = nullptr;
-    TIR_CUDA_CHECK(cudaMalloc(&d_a, bytes));
-    TIR_CUDA_CHECK(cudaMalloc(&d_b, bytes));
-    TIR_CUDA_CHECK(cudaMalloc(&d_c, bytes));
+struct Block {
+    Param conv_w;                  // [K, C, R, S]
+    Param gamma, beta, mean, var;  // batchnorm, each [K]
+};
 
-    // 3. Copy inputs host -> device
-    TIR_CUDA_CHECK(cudaMemcpy(d_a, h_a.data(), bytes, cudaMemcpyHostToDevice));
-    TIR_CUDA_CHECK(cudaMemcpy(d_b, h_b.data(), bytes, cudaMemcpyHostToDevice));
+static Block make_block() {
+    float w_scale = 1.0f / std::sqrt(static_cast<float>(kChannels * kFilter * kFilter));
+    Block b;
+    b.conv_w = make_param({kChannels, kChannels, kFilter, kFilter}, -w_scale, w_scale, 1);
+    b.gamma = make_param({kChannels}, 0.5f, 1.5f, 2);
+    b.beta = make_param({kChannels}, -0.5f, 0.5f, 3);
+    b.mean = make_param({kChannels}, -0.5f, 0.5f, 4);
+    b.var = make_param({kChannels}, 0.5f, 1.5f, 5);  // variance must be positive
+    return b;
+}
 
-    // 4. Launch the kernel. launch_vector_add (src/kernels/vector_add.cu) chooses how many
-    //    threads to run and launches vector_add_kernel<<<grid, block>>>.
-    //    It only enqueues work on the GPU and returns immediately (asynchronous).
-    //    It does check that the launch itself succeeded, but errors *during* kernel
-    //    execution only surface at the next synchronization point.
-    tir::launch_vector_add(d_a, d_b, d_c, n);
+// One executed op, kept so its kernel can be timed again on its own afterwards
+struct Step {
+    std::string op;
+    std::vector<Tensor> inputs;
+    Attrs attrs;
+    Tensor output;
+};
 
-    // 5. Copy the result device -> host.
-    //    Plain cudaMemcpy waits for preceding GPU work, so the kernel is guaranteed done here.
-    TIR_CUDA_CHECK(cudaMemcpy(h_c.data(), d_c, bytes, cudaMemcpyDeviceToHost));
+// run_op, plus recording the call in `trace` if one is given
+static Tensor op(std::vector<Step>* trace, const std::string& name, const std::vector<Tensor>& inputs,
+                 const Attrs& attrs = {}) {
+    Tensor out = tir::run_op(name, inputs, attrs);
+    if (trace) {
+        trace->push_back({name, inputs, attrs, out});
+    }
+    return out;
+}
 
-    // 6. Compute the same thing on the CPU and compare
+// The block on the GPU. Eager: each line launches its kernel immediately.
+// Assigning to `y` drops the previous intermediate, whose memory is freed right there.
+static Tensor run_block(const Tensor& x, const Block& b, std::vector<Step>* trace = nullptr) {
+    Tensor y = op(trace, "conv2d", {x, b.conv_w.tensor}, {{"pad", kPad}});
+    y = op(trace, "batchnorm", {y, b.gamma.tensor, b.beta.tensor, b.mean.tensor, b.var.tensor});
+    return op(trace, "relu", {y});
+}
+
+// The same block on the CPU, with the reference implementations
+static std::vector<float> run_block_cpu(const std::vector<float>& x, const Block& b) {
+    namespace ref = tir::ref;
+    int out_size = kSize + 2 * kPad - kFilter + 1;
+    int inner = out_size * out_size;
+    std::vector<float> y(size_t(kBatch) * kChannels * inner);
+    int n = static_cast<int>(y.size());
+    ref::conv2d(x.data(), b.conv_w.host.data(), y.data(), kBatch, kChannels, kSize, kSize, kChannels, kFilter, kFilter,
+                kPad, 1);
+    ref::batchnorm(y.data(), b.gamma.host.data(), b.beta.host.data(), b.mean.host.data(), b.var.host.data(), y.data(),
+                   n, kChannels, inner, 1e-5f);
+    ref::relu(y.data(), y.data(), n);
+    return y;
+}
+
+static bool check(const std::vector<float>& actual, const std::vector<float>& expected) {
     int mismatches = 0;
-    for (int i = 0; i < n; ++i) {
-        if (std::fabs(h_c[i] - (h_a[i] + h_b[i])) > 1e-5f) {
+    for (size_t i = 0; i < actual.size(); ++i) {
+        if (std::fabs(actual[i] - expected[i]) > 1e-3f * (1.0f + std::fabs(expected[i]))) {
             ++mismatches;
         }
     }
-
-    // 7. Free device memory. If forgotten, it stays allocated until the process exits.
-    TIR_CUDA_CHECK(cudaFree(d_a));
-    TIR_CUDA_CHECK(cudaFree(d_b));
-    TIR_CUDA_CHECK(cudaFree(d_c));
-
-    std::printf("  %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
+    std::printf("check vs CPU reference: %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
     return mismatches == 0;
 }
 
-static bool run_gemm(int M, int N, int K) {
-    std::printf("[gemm_naive] M = %d, N = %d, K = %d\n", M, N, K);
-    size_t bytes_A = size_t(M) * K * sizeof(float);
-    size_t bytes_B = size_t(K) * N * sizeof(float);
-    size_t bytes_C = size_t(M) * N * sizeof(float);
-
-    // Same sequence as vector_add again. Only the sizes and the launch function differ.
-    std::vector<float> h_A(size_t(M) * K), h_B(size_t(K) * N), h_C(size_t(M) * N);
-    for (size_t i = 0; i < h_A.size(); ++i) {
-        h_A[i] = static_cast<float>(i % 7) * 0.1f;
+// Time one op's kernel alone: launch it kReplays times back to back on the tensors it used in
+// the block. Nothing else runs in between, so the GPU never waits for the host.
+static double kernel_time_us(const Step& step) {
+    const tir::OpDef& def = tir::registry().get(step.op);
+    Tensor out = step.output;
+    tir::GpuTimer timer;
+    timer.start();
+    for (int i = 0; i < kReplays; ++i) {
+        def.launch(step.inputs, out, step.attrs, tir::default_context());
     }
-    for (size_t i = 0; i < h_B.size(); ++i) {
-        h_B[i] = static_cast<float>(i % 5) * 0.1f;
-    }
-
-    float *d_A = nullptr, *d_B = nullptr, *d_C = nullptr;
-    TIR_CUDA_CHECK(cudaMalloc(&d_A, bytes_A));
-    TIR_CUDA_CHECK(cudaMalloc(&d_B, bytes_B));
-    TIR_CUDA_CHECK(cudaMalloc(&d_C, bytes_C));
-
-    TIR_CUDA_CHECK(cudaMemcpy(d_A, h_A.data(), bytes_A, cudaMemcpyHostToDevice));
-    TIR_CUDA_CHECK(cudaMemcpy(d_B, h_B.data(), bytes_B, cudaMemcpyHostToDevice));
-
-    // C is 2D, so launch_gemm_naive lays threads out in 2D too: x for columns, y for rows
-    tir::launch_gemm_naive(d_A, d_B, d_C, M, N, K);
-
-    TIR_CUDA_CHECK(cudaMemcpy(h_C.data(), d_C, bytes_C, cudaMemcpyDeviceToHost));
-
-    std::vector<float> expected(size_t(M) * N);
-    tir::ref::gemm(h_A.data(), h_B.data(), expected.data(), M, N, K);
-    int mismatches = 0;
-    for (size_t i = 0; i < h_C.size(); ++i) {
-        if (std::fabs(h_C[i] - expected[i]) > 1e-3f * (1.0f + std::fabs(expected[i]))) {
-            ++mismatches;
-        }
-    }
-
-    TIR_CUDA_CHECK(cudaFree(d_A));
-    TIR_CUDA_CHECK(cudaFree(d_B));
-    TIR_CUDA_CHECK(cudaFree(d_C));
-
-    std::printf("  %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
-    return mismatches == 0;
-}
-
-static bool run_conv2d(int N, int C, int H, int W, int K, int R, int S, int pad, int stride) {
-    // We have to compute the output size ourselves (to allocate y) and pass every size and
-    // setting down to the kernel.
-    int P = (H + 2 * pad - R) / stride + 1;
-    int Q = (W + 2 * pad - S) / stride + 1;
-    std::printf("[conv2d_naive] x[%d,%d,%d,%d] w[%d,%d,%d,%d] pad=%d stride=%d -> y[%d,%d,%d,%d]\n",
-                N, C, H, W, K, C, R, S, pad, stride, N, K, P, Q);
-    size_t x_count = size_t(N) * C * H * W;
-    size_t w_count = size_t(K) * C * R * S;
-    size_t y_count = size_t(N) * K * P * Q;
-
-    std::vector<float> h_x(x_count), h_w(w_count), h_y(y_count);
-    for (size_t i = 0; i < x_count; ++i) {
-        h_x[i] = static_cast<float>(i % 11) * 0.1f;
-    }
-    for (size_t i = 0; i < w_count; ++i) {
-        h_w[i] = static_cast<float>(i % 3) * 0.1f;
-    }
-
-    float *d_x = nullptr, *d_w = nullptr, *d_y = nullptr;
-    TIR_CUDA_CHECK(cudaMalloc(&d_x, x_count * sizeof(float)));
-    TIR_CUDA_CHECK(cudaMalloc(&d_w, w_count * sizeof(float)));
-    TIR_CUDA_CHECK(cudaMalloc(&d_y, y_count * sizeof(float)));
-
-    TIR_CUDA_CHECK(cudaMemcpy(d_x, h_x.data(), x_count * sizeof(float), cudaMemcpyHostToDevice));
-    TIR_CUDA_CHECK(cudaMemcpy(d_w, h_w.data(), w_count * sizeof(float), cudaMemcpyHostToDevice));
-
-    // launch_conv2d_naive runs one thread per output element
-    tir::launch_conv2d_naive(d_x, d_w, d_y, N, C, H, W, K, R, S, pad, stride);
-
-    TIR_CUDA_CHECK(cudaMemcpy(h_y.data(), d_y, y_count * sizeof(float), cudaMemcpyDeviceToHost));
-
-    std::vector<float> expected(y_count);
-    tir::ref::conv2d(h_x.data(), h_w.data(), expected.data(), N, C, H, W, K, R, S, pad, stride);
-    int mismatches = 0;
-    for (size_t i = 0; i < y_count; ++i) {
-        if (std::fabs(h_y[i] - expected[i]) > 1e-3f * (1.0f + std::fabs(expected[i]))) {
-            ++mismatches;
-        }
-    }
-
-    TIR_CUDA_CHECK(cudaFree(d_x));
-    TIR_CUDA_CHECK(cudaFree(d_w));
-    TIR_CUDA_CHECK(cudaFree(d_y));
-
-    std::printf("  %s (%d mismatches)\n", mismatches == 0 ? "OK" : "FAIL", mismatches);
-    return mismatches == 0;
+    timer.stop();
+    return timer.elapsed_us() / kReplays;
 }
 
 int main() {
-    bool ok = true;
-    ok &= run_vector_add(kVectorN);
-    ok &= run_gemm(kGemm.M, kGemm.N, kGemm.K);
-    ok &= run_conv2d(kConv2d.N, kConv2d.C, kConv2d.H, kConv2d.W, kConv2d.K, kConv2d.R, kConv2d.S,
-                     kConv2d.pad, kConv2d.stride);
+    Param x = make_param({kBatch, kChannels, kSize, kSize}, -1.0f, 1.0f, 0);
+    Block block = make_block();
+
+    // 1. Correctness: one traced run, compared with the CPU
+    std::vector<Step> trace;
+    Tensor y = run_block(x.tensor, block, &trace);
+    bool ok = check(y.to_host(), run_block_cpu(x.host, block));
+
+    // 2. End-to-end time of the block (CPU clock, until the GPU is done)
+    auto& stats = tir::default_allocator().stats();
+    std::vector<double> block_us;
+    size_t allocs = 0, frees = 0;
+    for (int i = 0; i < kRepeats; ++i) {
+        tir::default_allocator().reset_stats();
+        tir::CpuTimer timer;
+        timer.start();
+        {
+            Tensor out = run_block(x.tensor, block);
+            TIR_CUDA_CHECK(cudaDeviceSynchronize());
+        }  // out is dropped here, so every allocation of this run has been freed
+        block_us.push_back(timer.stop_us());
+        allocs = stats.num_allocs;
+        frees = stats.num_frees;
+    }
+
+    // 3. Kernel-only time of each op
+    std::printf("\nconv -> batchnorm -> relu, x[%d,%d,%d,%d], fp32, eager\n\n", kBatch, kChannels, kSize, kSize);
+    std::printf("%-10s %-16s %12s\n", "op", "output", "kernel (us)");
+    double kernel_sum = 0.0;
+    for (const Step& step : trace) {
+        double us = kernel_time_us(step);
+        kernel_sum += us;
+        std::printf("%-10s %-16s %12.1f\n", step.op.c_str(), tir::to_string(step.output.shape()).c_str(), us);
+    }
+
+    double total = tir::median(block_us);
+    std::printf("\nsum of kernel times : %8.1f us\n", kernel_sum);
+    std::printf("block end to end    : %8.1f us  (median of %d)\n", total, kRepeats);
+    std::printf("runtime overhead    : %8.1f us  (%.0f%% of the block)\n", total - kernel_sum,
+                100.0 * (total - kernel_sum) / total);
+    std::printf("per run             : %zu run_op calls, %zu cudaMalloc, %zu cudaFree\n\n", trace.size(), allocs,
+                frees);
     return ok ? 0 : 1;
 }

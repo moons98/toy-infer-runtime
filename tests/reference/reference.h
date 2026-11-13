@@ -12,7 +12,12 @@ void vector_add(const float* a, const float* b, float* c, int n);
 void gemm(const float* A, const float* B, float* C, int M, int N, int K);
 
 // x [N, C, H, W], w [K, C, R, S] -> y [N, K, P, Q]
-void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W, int K, int R,
-            int S, int pad, int stride);
+void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W, int K, int R, int S, int pad,
+            int stride);
+
+void relu(const float* x, float* y, int n);
+
+void batchnorm(const float* x, const float* gamma, const float* beta, const float* mean, const float* var, float* y,
+               int n, int channels, int inner, float eps);
 
 }  // namespace tir::ref

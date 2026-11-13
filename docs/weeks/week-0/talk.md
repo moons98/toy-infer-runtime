@@ -84,6 +84,14 @@ grid (launch 한 번)
 
 **SM에서 실행되는 방식**
 
+| | 위치 | 하는 일 |
+|---|---|---|
+| block scheduler | GPU 전체에 1개 | block을 자원이 남는 SM에 배정한다 |
+| warp scheduler | SM마다 4개 | 매 사이클 준비된 warp를 하나 골라 core 32개에서 실행한다 |
+
+- block이 SM에 한번 배정되면 끝날 때까지 그 SM에 존재한다. 
+- warp도 한번 정해진 SM partition에서 계속 실행된다.
+
 ① 배치는 block 단위다.
 
 - block 하나는 GPU의 block scheduler에 의해 SM 하나에 통째로 배정된다.
@@ -104,6 +112,37 @@ warp 1:       [LDG] ·····대기····· [FADD]
 warp 2:             [LDG] ·····대기·····
           ↑ warp scheduler가 기다리는 warp 대신 다른 warp를 실행
 ```
+
+### 메모리 계층
+
+| 이름 | 위치 | 누가 보나 | 크기 (RTX PRO 4000) | 속도 |
+|---|---|---|---|---|
+| register | SM 안 | thread 하나 | SM당 65,536개 (thread당 최대 255개) | 가장 빠름 |
+| L1 cache | SM 안 | 같은 SM (하드웨어가 관리) | shared memory와 같은 공간을 나눠 씀 | 매우 빠름 |
+| shared memory | SM 안 | 같은 block | SM당 100 KB (block당 기본 48 KB) | 매우 빠름 |
+| L2 cache | GPU 칩 안 | 전체 (하드웨어가 관리) | 48 MB | 빠름 |
+| global memory | GPU 칩 밖 DRAM (VRAM) | 모든 thread, CPU는 복사로 | 25.2 GB | 느림 (672 GB/s) |
+
+**global memory를 읽는 방식**
+
+- 채널(bus)마다 32 bit, 채널마다 메모리 컨트롤러가 있다.
+- 대역폭 = 폭(192 bit) × 초당 전송 횟수 = 672 GB/s
+- 최소 전송 단위는 sector(32 B), cache line(128 B)은 캐시의 장부 단위다. 
+  - CPU는 둘이 같지만 GPU는 분리돼 있다.
+- 컨트롤러가 읽기 명령을 한 번 내리면 DRAM이 burst로 연속 전송하고(4 B × 8번), 모인 32 B가 sector로 L2에 들어간다.
+  - warp가 연속된 float 32개(128 B)를 읽으면 sector 4개로 끝나지만, 주소가 흩어지면 4 B를 쓰려고 32 B씩 가져온다. (coalescing)
+
+**shared memory**
+
+```
+global (VRAM) ─bus─▶ L2 ─▶ L1 ─▶ register ─▶ shared memory   (커널이 직접 복사)
+                                                    │
+                     shared memory ──(bank 32개)──▶ register   (LDS 명령)
+```
+
+- shared memory는 SM 안의 SRAM이다.
+- 32개 bank가 4 B씩 번갈아 주소를 맡는다. 
+  - warp의 32 thread가 서로 다른 bank를 건드리면 한 번에 register로 전달되고, 같은 bank의 다른 주소를 건드리면 나눠서 처리된다 (bank conflict).
 
 ### thread가 자기 데이터를 찾는 방법
 
@@ -133,6 +172,15 @@ int row = blockIdx.y * blockDim.y + threadIdx.y;   // y → 행
   - 이런 주소 접근의 경우, GPU는 한 번에 묶어서 처리한다 (coalescing).
 - x를 row에 연결하면 이웃 thread가 N칸씩 떨어진 주소를 건드려서 느려진다.
 - 원칙: **warp 안에서 이웃한 thread가 메모리에서도 이웃한 주소를 읽게 매핑한다.**
+
+### block 모양과 크기 정하기
+
+**`dim3`로 모양을 주는 이유**
+
+- 행렬, tensor 같은 데이터 shape과 직관적으로 맞출 수 있지만, 성능 차이는 없다.
+  - 2D로 주면 `threadIdx.x`, `.y`를 행렬의 열, 행에 바로 쓸 수 있다. 1D로 주면 `/`, `%`로 직접 풀어야 한다.
+  - 하드웨어는 어차피 x 순서로 펴서 warp를 묶으므로, `block(16, 16)`과 `block(256)`의 warp 구성은 같다.
+- block 내 thread 수, block 하나가 맡는 출력 범위 등은 튜닝 파라미터다
 
 ### `.cpp`에서 보이는 것
 
@@ -185,7 +233,7 @@ CUDA 커널 코드는 두 단계로 컴파일된다.
 | | PTX | SASS |
 |---|---|---|
 | 무엇 | 모든 NVIDIA GPU 공통의 중간 언어 | 특정 GPU의 실제 기계어 |
-| 만드는 것 | nvcc | ptxas |
+| 컴파일러 | nvcc | ptxas |
 | 레지스터 | 가상, 개수 제한 없음 (`%r1`, `%f1`) | 실제, 개수 제한 있음 (`R0`, `R9`) |
 | 명령어 예 | `ld.global.f32`, `add.f32` | `LDG.E`, `FADD` |
 | GPU 세대가 바뀌면 | 그대로 쓸 수 있음 | 다시 컴파일해야 함 |
@@ -215,7 +263,7 @@ st.global.f32  [%rd10], %f3;            // c[i] 쓰기
 $L__BB0_2: ret;
 ```
 
-SASS (ptxas 결과)
+SASS (역어셈블 결과)
 
 ```
 S2R    R0, SR_TID.X                 // threadIdx.x
@@ -353,7 +401,7 @@ cudaMemcpy D2H                              │
 - [tests/reference/](../../../tests/reference/)에 CPU로 같은 연산을 구현해 두고 정답으로 쓴다.
 - `ctest`는 테스트 프로그램의 종료 코드(0이면 통과)로 판정한다.
 - 부동소수점은 계산 순서에 따라 값이 조금 달라지므로 `|actual - expected| <= atol + rtol * |expected|`로 비교한다.
-- **일부러 애매한 크기를 넣는다** ([test_gemm.cpp](../../../tests/test_gemm.cpp)): 1×1×1, 블록 크기와 딱 맞는 16, 안 맞는 17×33×9, M=1. 경계 체크가 빠지면 여기서 에러가 발생한다.
+- **일부러 애매한 크기를 넣는다** ([test_gemm.cpp](../../../tests/kernels/test_gemm.cpp)): 1×1×1, 블록 크기와 딱 맞는 16, 안 맞는 17×33×9, M=1. 경계 체크가 빠지면 여기서 에러가 발생한다.
 
 ### 벤치 프로그램
 

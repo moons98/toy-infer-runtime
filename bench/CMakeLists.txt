@@ -12,3 +12,7 @@ target_link_libraries(first_call PRIVATE tir_kernels)
 # Sweep sizes and measure copy time, kernel time, and GFLOPS
 add_executable(size_sweep size_sweep.cpp)
 target_link_libraries(size_sweep PRIVATE tir_kernels)
+
+# Cost of eager run_op (shape inference, allocation, free) on top of the kernel itself
+add_executable(eager_overhead eager_overhead.cpp)
+target_link_libraries(eager_overhead PRIVATE tir_core)

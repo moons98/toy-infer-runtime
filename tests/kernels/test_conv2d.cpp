@@ -21,18 +21,15 @@ static bool check(const ConvCase& c) {
     auto w = test::random_vector(w_size, 2);
 
     std::vector<float> expected(y_size);
-    ref::conv2d(x.data(), w.data(), expected.data(), c.N, c.C, c.H, c.W, c.K, c.R, c.S, c.pad,
-                c.stride);
+    ref::conv2d(x.data(), w.data(), expected.data(), c.N, c.C, c.H, c.W, c.K, c.R, c.S, c.pad, c.stride);
 
     test::DeviceArray d_x(x), d_w(w), d_y(y_size);
-    launch_conv2d_naive(d_x.data(), d_w.data(), d_y.data(), c.N, c.C, c.H, c.W, c.K, c.R, c.S,
-                        c.pad, c.stride);
+    launch_conv2d_naive(d_x.data(), d_w.data(), d_y.data(), c.N, c.C, c.H, c.W, c.K, c.R, c.S, c.pad, c.stride);
     auto actual = d_y.to_host();
 
     bool ok = test::all_close(actual, expected, 1e-4f, 1e-4f);
-    std::printf("conv2d x[%d,%d,%d,%d] w[%d,%d,%d,%d] pad=%d stride=%d -> y[%d,%d,%d,%d] %s\n", c.N,
-                c.C, c.H, c.W, c.K, c.C, c.R, c.S, c.pad, c.stride, c.N, c.K, P, Q,
-                ok ? "OK" : "FAIL");
+    std::printf("conv2d x[%d,%d,%d,%d] w[%d,%d,%d,%d] pad=%d stride=%d -> y[%d,%d,%d,%d] %s\n", c.N, c.C, c.H, c.W, c.K,
+                c.C, c.R, c.S, c.pad, c.stride, c.N, c.K, P, Q, ok ? "OK" : "FAIL");
     return ok;
 }
 

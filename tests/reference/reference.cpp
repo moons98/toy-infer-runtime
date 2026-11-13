@@ -1,5 +1,7 @@
 #include "reference/reference.h"
 
+#include <cmath>
+
 namespace tir::ref {
 
 void vector_add(const float* a, const float* b, float* c, int n) {
@@ -20,8 +22,8 @@ void gemm(const float* A, const float* B, float* C, int M, int N, int K) {
     }
 }
 
-void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W, int K, int R,
-            int S, int pad, int stride) {
+void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W, int K, int R, int S, int pad,
+            int stride) {
     int P = (H + 2 * pad - R) / stride + 1;
     int Q = (W + 2 * pad - S) / stride + 1;
     for (int n = 0; n < N; ++n) {
@@ -37,8 +39,7 @@ void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W
                                 if (h < 0 || h >= H || w_idx < 0 || w_idx >= W) {
                                     continue;  // padding is zero
                                 }
-                                acc += x[((n * C + c) * H + h) * W + w_idx] *
-                                       w[((k * C + c) * R + r) * S + s];
+                                acc += x[((n * C + c) * H + h) * W + w_idx] * w[((k * C + c) * R + r) * S + s];
                             }
                         }
                     }
@@ -46,6 +47,20 @@ void conv2d(const float* x, const float* w, float* y, int N, int C, int H, int W
                 }
             }
         }
+    }
+}
+
+void relu(const float* x, float* y, int n) {
+    for (int i = 0; i < n; ++i) {
+        y[i] = x[i] > 0.0f ? x[i] : 0.0f;
+    }
+}
+
+void batchnorm(const float* x, const float* gamma, const float* beta, const float* mean, const float* var, float* y,
+               int n, int channels, int inner, float eps) {
+    for (int i = 0; i < n; ++i) {
+        int c = (i / inner) % channels;
+        y[i] = (x[i] - mean[c]) / std::sqrt(var[c] + eps) * gamma[c] + beta[c];
     }
 }
 
