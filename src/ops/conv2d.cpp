@@ -1,4 +1,4 @@
-// conv2d: x[N, C, H, W] * w[K, C, R, S] -> y[N, K, P, Q]
+// conv2d: x[N, C, H, W] * w[K, C, R, S] -> y[N, K, P, Q]   (letters as in tir/kernels.h)
 // attrs: pad (default 0), stride (default 1)
 
 #include <stdexcept>
