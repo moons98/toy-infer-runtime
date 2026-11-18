@@ -21,10 +21,10 @@ void launch_vector_add(const float* a, const float* b, float* c, int n, cudaStre
 // naive: each thread computes one element of C.
 void launch_gemm_naive(const float* A, const float* B, float* C, int M, int N, int K, cudaStream_t stream = 0);
 
-// 2D convolution (NCHW layout, no bias)
-//   x: input   [N, C, H, W]
-//   w: weight  [K, C, R, S]   (K output channels, each a C x R x S filter)
-//   y: output  [N, K, P, Q]   (P and Q come from conv2d_out_size)
+// 2D convolution (NCHW layout, no bias). Letters follow cuDNN's notation:
+//   x: input   [N, C, H, W]   N batch, C input channels (PyTorch in_channels), H x W input size
+//   w: weight  [K, C, R, S]   K output channels (out_channels), R x S filter. Same order as PyTorch's weight
+//   y: output  [N, K, P, Q]   P x Q output size (from conv2d_out_size)
 // naive: each thread computes one output element.
 void launch_conv2d_naive(const float* x, const float* w, float* y, int N, int C, int H, int W, int K, int R, int S,
                          int pad, int stride, cudaStream_t stream = 0);

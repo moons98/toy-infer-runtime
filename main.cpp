@@ -46,8 +46,8 @@ constexpr int kReplays = 100;  // launches per op when timing a kernel on its ow
 
 // A value kept on both sides: a host copy for the CPU reference and a Tensor for the GPU
 struct Param {
-    std::vector<float> host;
-    Tensor tensor;
+    std::vector<float> host;  // CPU reference
+    Tensor tensor;            // GPU
 };
 
 static Param make_param(const Shape& shape, float lo, float hi, unsigned seed) {
@@ -109,6 +109,7 @@ static std::vector<float> run_block_cpu(const std::vector<float>& x, const Block
     int inner = out_size * out_size;
     std::vector<float> y(size_t(kBatch) * kChannels * inner);
     int n = static_cast<int>(y.size());
+
     ref::conv2d(x.data(), b.conv_w.host.data(), y.data(), kBatch, kChannels, kSize, kSize, kChannels, kFilter, kFilter,
                 kPad, 1);
     ref::batchnorm(y.data(), b.gamma.host.data(), b.beta.host.data(), b.mean.host.data(), b.var.host.data(), y.data(),

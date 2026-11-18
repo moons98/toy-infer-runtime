@@ -31,6 +31,9 @@ class Tensor {
     // An empty handle with no memory. Check with defined().
     Tensor() = default;
 
+    // Tensors with memory are created by these static factory functions (functions that build and
+    // return a new object), not by a constructor: the name says how the tensor is made.
+
     // New tensor with uninitialized device memory.
     static Tensor empty(const Shape& shape, Allocator& allocator = default_allocator());
     // New tensor initialized with a copy of host data (host -> device copy).
